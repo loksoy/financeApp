@@ -61,6 +61,7 @@ def create_graph(input_df):
 def retrieve_stock_info():
     stock_data = st.session_state["ticker_object"]
     stock_info = stock_data.info
+    st.session_state["stock_name"] = stock_data.info["longName"]
     return stock_info   
 
 @st.cache_data
@@ -80,6 +81,8 @@ if __name__ == "__main__":
         st.session_state["filtered_stocks"] = pd.DataFrame()
     if "selected_stock" not in st.session_state:
         st.session_state["selected_stock"] = None
+    if "stock_name" not in st.session_state:
+        st.session_state["stock_name"] = ""
     if "selected_ticker" not in st.session_state:
         st.session_state["selected_ticker"] = ""
     if "submit_button" not in st.session_state:
