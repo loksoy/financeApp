@@ -5,6 +5,13 @@ import pandas as pd
 from datetime import datetime
 import streamlit as st
 
+st.set_page_config(
+    page_title="Homepage",
+    page_icon="🏡",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
+
 @st.cache_data
 def retrieve_stock_lookup():
     #Loads lookup table containing Exchange, Stock Name and Ticker
@@ -105,6 +112,8 @@ if __name__ == "__main__":
     if "stock_info" not in st.session_state:
         st.session_state["stock_info"] = ""
     
+    st.header("Choose your stock")
+    st.image("https://compote.slate.com/images/926e5009-c10a-48fe-b90e-fa0760f82fcd.png?crop=680%2C453%2Cx0%2Cy0&width=2200")
     
     # Select exchange 
     selected_exchange = st.selectbox(
@@ -174,12 +183,6 @@ if __name__ == "__main__":
         st.plotly_chart(st.session_state["price_plot"], use_container_width=True)
 
     else:
-        st.write("Select Exchange, Stock and Date Lenght before pressing 'Get data'")
-    
+        st.write("Select Exchange, Stock Name and Period before pressing 'Get data'")
 
-    #Helping functions
-    st.write(f"Selected exhcange: {st.session_state['selected_exchange']}")
-    st.write(f"Selected stock: {st.session_state['selected_stock']}")  
-    st.write(f"Stock name: {st.session_state['stock_name']}")  
-    st.write(f"Submitted: {st.session_state['selected_ticker']}")
     

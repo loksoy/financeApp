@@ -26,7 +26,6 @@ def plot_dividends():
     fig.update_layout(title="Historical dividends",
                       xaxis_title="Date",
                       yaxis_title="Dividends")
-    
     return fig
 
 
@@ -53,7 +52,6 @@ def calc_margins():
                                 (df_T["OperatingIncome"].notna()) & (df_T["TotalRevenue"].notna()),
                                 df_T["OperatingIncome"] / df_T["TotalRevenue"],
                                 np.nan)
-
     return df_T
 
 def plot_margins():
@@ -78,83 +76,112 @@ def plot_margins():
     ))
 
     fig.update_layout(
-        title="Gross Profit Margin and Operating Margin over time",
+        showlegend=False,
         xaxis_title="Date",
         yaxis_title="Margin",
     )
-
     return fig
 
 
 #Create lineplot showing historic PE-ratio
-def calc_hist_pe():
-    #Load datasets
-    income_stmt = st.session_state["financial_stmt"]
-    price_data = st.session_state["ticker_object"].history(period="5y")
+def plot_eps_history():
+    financial_df = st.session_state["financial_stmt"]
 
-    #Extracting earnings from income_stmt
-    earnings = income_stmt.loc["DilutedEPS"]
-
-    #Fix index
-    earnings.index = pd.to_datetime(earnings.index)
-    price_data.index = price_data.index.tz_localize(None)
-
-    #Merging datasets
-    price_data["DilutedEPS"] = earnings.reindex(price_data.index, method="ffill")
-
-    #Calculate PE-ratio
-    price_data["PE-ratio"] = np.where(price_data["DilutedEPS"].notna(),
-                                   price_data["Close"] / price_data["DilutedEPS"],
-                                   np.nan) 
-    return price_data
-
-def plot_hist_pe():
-    pe_df = st.session_state["historic_pe"]
-
-    fig = go.Figure(data=go.Scatter(
-                        x = pe_df.index,
-                        y = pe_df["PE-ratio"],
-                        mode="lines"))
+    df_T = financial_df.T
     
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+                x=df_T.index,
+                y=df_T["DilutedEPS"],
+                mode="lines+markers",
+                name="EPS"
+                ))
+    
+    fig.update_layout(
+        xaxis_title="Date",
+        yaxis_title="EPS"
+    )
     return fig
+    
+def get_pe_ratios():
+    market_tickers = {"Dow Jones": "DIA",
+                 "NASDAQ": "QQQ",
+                 "S&P 500" : "SPY",
+                 "Technology": "XLK",
+                 "Financials" : "XLF",
+                 "Energy" : "XLE",
+                 "Healthcare": "XLV",
+                 "Real Estate": "XLRE"
+                 }
+    
+    market_pe = {}
 
+    for key, val in market_tickers.items():
+        market_obj = yf.Ticker(val)
+        pe_market = market_obj.info.get("trailingPE")
+        market_pe[key] = pe_market
+    return market_pe
 
-
+    
+    
 
 
 
 if __name__ == "__main__":
+    if "market_pe" not in st.session_state:
+        st.session_state["market_pe"] = ""
     if "financial_stmt" not in st.session_state:
         st.session_state["financial_stmt"] = pd.DataFrame()
     if "transposed_df" not in st.session_state:
         st.session_state["transposed_df"] = pd.DataFrame()
-    if "historic_pe" not in st.session_state:
-        st.session_state["historic_pe"] = pd.DataFrame()
     if "margins_df" not in st.session_state:
         st.session_state["margins_df"] = pd.DataFrame()
     if "margin_plot" not in st.session_state:
         st.session_state["margin_plot"] = False
-    if "pe_plot" not in st.session_state:
-        st.session_state["pe_plot"] = False
     if "dividends" not in st.session_state:
         st.session_state["dividends"] = pd.DataFrame()
+    if "EPS_plot" not in st.session_state:
+        st.session_state["EPS_plot"] = False
+
     
-    st.header("Advanced Graphs")
+    st.header("Advanced Information 📈")
+    st.write(f"### {st.session_state["stock_name"]}")
+    st.write(f"PE-ratio: {st.session_state.stock_info['trailingPE']}")
+    
+    st.session_state["market_pe"] = get_pe_ratios()
+
+    st.write("### Market PE-ratios")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"Dow Jones: {st.session_state.market_pe["Dow Jones"]}")
+        st.write(f"NASDAQ: {st.session_state.market_pe["NASDAQ"]}")
+        st.write(f"S&P 500: {st.session_state.market_pe["S&P 500"]}")
+        st.write(f"Technology: {st.session_state.market_pe["Technology"]}")
+    with col2:
+        st.write(f"Financials: {st.session_state.market_pe["Financials"]}")
+        st.write(f"Energy: {st.session_state.market_pe["Energy"]}")
+        st.write(f"Healthcare: {st.session_state.market_pe["Healthcare"]}")
+        st.write(f"Real Estate: {st.session_state.market_pe["Real Estate"]}")
 
     #Get financial statement
     st.session_state["financial_stmt"] = get_financials() 
     st.session_state["transposed_df"] = calc_margins() 
     st.session_state["margins_df"] = calc_margins()
     st.session_state["margin_plot"] = plot_margins()
+    st.session_state["EPS_plot"] = plot_eps_history()
     
+  
     #Plot graph for margins
+    st.write("#### Gross Profit & Operating Margin")
     st.plotly_chart(st.session_state["margin_plot"], use_container_width=True)
 
-    #Calculating historic PE-ratio
-    st.session_state["historic_pe"] = calc_hist_pe()
-    st.session_state["pe_plot"] = plot_hist_pe()
-    #Plot graph for historic PE-ratio
-    st.plotly_chart(st.session_state["pe_plot"], use_container_width=True)
+
+    #Plot historic EPS
+    st.write("#### EPS History")
+    st.plotly_chart(st.session_state["EPS_plot"], use_container_width=True)
+
 
     #Get historic dividends
     st.session_state["dividends"] = get_dividends()
