@@ -24,8 +24,8 @@ def fetch_balance_sheet():
     return balance_sheet
 
 if __name__ == "__main__":
-    
-    st.write(f"Stock: {st.session_state["stock_name"]}")
+    st.write(f"Stock name: {st.session_state["stock_name"]}")
+    #st.write(f"Stock: {st.session_state["stock_name"]}")
     st.session_state["income_stmt"] = fetch_income_stmt()
     st.session_state["balance_sheet"] = fetch_balance_sheet()
 
@@ -37,3 +37,7 @@ if __name__ == "__main__":
     st.header("Balance Sheet")
     with st.expander("Yearly Balance Sheet"):
         st.write(st.session_state["balance_sheet"])
+    
+    """Note to self:
+    st.session_state.stock_name is always overwritten after changing page and therefore not available at the top of the page. 
+    Need to find a place to initialize functions outside of if-statement to make it stick."""

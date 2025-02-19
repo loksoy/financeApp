@@ -29,6 +29,7 @@ def get_selected_symbol(df_lookup):
 
 @st.cache_resource
 def retrieve_ticker_object(stock_ticker):
+    #Retrieves the stock ticker object based on the selected stock_ticker
     ticker_object = yf.Ticker(stock_ticker)
     return ticker_object
 
@@ -41,6 +42,8 @@ def retrieve_price_data(date_range):
 
 @st.cache_data
 def create_graph(input_df):
+    #Creates a grap_object that shows the price and volume of traded stocks for the selected range
+    #Range selctor is added to the plot. 
     st.session_state["price_plot"] = make_subplots(specs=[[{"secondary_y":True}]])
 
     st.session_state["price_plot"].add_trace(go.Scatter(x=input_df.index,
@@ -52,6 +55,8 @@ def create_graph(input_df):
                          y=input_df["Volume"], 
                          marker={"color":"gray"}),
                          secondary_y=False)
+    
+    st.session_state["price_plot"].layout.xaxis.rangeslider.visible=True
     st.session_state["price_plot"].layout.yaxis2.showgrid=False
     st.session_state["price_plot"].layout.showlegend=False
 
@@ -59,13 +64,15 @@ def create_graph(input_df):
 
 @st.cache_data
 def retrieve_stock_info():
+    #Retrieves and return stock_info and stock_name based on the selected ticker_object
     stock_data = st.session_state["ticker_object"]
     stock_info = stock_data.info
     st.session_state["stock_name"] = stock_data.info["longName"]
-    return stock_info   
+    return stock_info, stock_info.get("longName", "Unknown Stock")
 
 @st.cache_data
 def retrieve_price_targets():
+    #Retrieves and returns analyst_price_targets based on the ticker_object
     stock_data = st.session_state["ticker_object"]
     price_targets = stock_data.analyst_price_targets
     return price_targets
@@ -85,6 +92,8 @@ if __name__ == "__main__":
         st.session_state["stock_name"] = ""
     if "selected_ticker" not in st.session_state:
         st.session_state["selected_ticker"] = ""
+    if "last_selected_ticker" not in st.session_state:
+        st.session_state["last_selected_ticker"] = ""
     if "submit_button" not in st.session_state:
         st.session_state["submit_ubtton"] = False
     if "ticker_object" not in st.session_state:
@@ -127,7 +136,16 @@ if __name__ == "__main__":
     if submit_button and st.session_state["selected_exchange"] and st.session_state["selected_stock"] != None:
         #Retrieving key info
         st.session_state["ticker_object"] = retrieve_ticker_object(st.session_state["selected_ticker"])
-        st.session_state["stock_info"] = retrieve_stock_info()
+
+        # Clear cache if stock selection has changed
+        if "last_selected_ticker" in st.session_state and st.session_state["last_selected_ticker"] != st.session_state["selected_ticker"]:
+            st.cache_data.clear()  # Clears the cached data when the selection changes
+    
+        # Store the new selection for future reference
+        st.session_state["last_selected_ticker"] = st.session_state["selected_ticker"]
+
+        #Store stock_info (dictionary of info) and stock_name in cache
+        st.session_state["stock_info"], st.session_state["stock_name"] = retrieve_stock_info()
         st.session_state["price_targets"] = retrieve_price_targets()
 
         st.header("About the company")
@@ -142,16 +160,15 @@ if __name__ == "__main__":
 
         with col2:
             st.header("Analyst price targets")
-            st.write(f"High: {st.session_state.price_targets['high']}")
-            st.write(f"Low: {st.session_state.price_targets['low']}")
-            st.write(f"Mean: {st.session_state.price_targets['mean']}")
-   
+            try:
+                st.write(f"High: {st.session_state.price_targets['high']}")
+                st.write(f"Low: {st.session_state.price_targets['low']}")
+                st.write(f"Mean: {st.session_state.price_targets['mean']}")
+            except:
+                st.write(f"No analyst price targets available")
             
 
         #Retrieving price data and creating graph
-        st.session_state["ticker_object"] = retrieve_ticker_object(st.session_state["selected_ticker"])
-
-
         st.session_state["stock_data"] = retrieve_price_data(st.session_state["radio_range"])
         st.session_state["price_plot"] = create_graph(st.session_state["stock_data"])
         st.plotly_chart(st.session_state["price_plot"], use_container_width=True)
@@ -159,10 +176,10 @@ if __name__ == "__main__":
     else:
         st.write("Select Exchange, Stock and Date Lenght before pressing 'Get data'")
     
-    
 
     #Helping functions
     st.write(f"Selected exhcange: {st.session_state['selected_exchange']}")
     st.write(f"Selected stock: {st.session_state['selected_stock']}")  
+    st.write(f"Stock name: {st.session_state['stock_name']}")  
     st.write(f"Submitted: {st.session_state['selected_ticker']}")
     
