@@ -38,6 +38,3 @@ if __name__ == "__main__":
     with st.expander("Yearly Balance Sheet"):
         st.write(st.session_state["balance_sheet"])
     
-    """Note to self:
-    st.session_state.stock_name is always overwritten after changing page and therefore not available at the top of the page. 
-    Need to find a place to initialize functions outside of if-statement to make it stick."""
