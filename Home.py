@@ -28,6 +28,10 @@ def update_stock_selection(df_lookup):
     return st.session_state.filtered_stocks
 
 def get_selected_symbol(df_lookup):
+    #Exception if the button is pressed without selected exchange or selected stock
+    if st.session_state["selected_exchange"] == None or st.session_state["selected_stock"] == None:
+        return None
+    
     #Filters list of stocks based on selected exchange and stock name and returns selected stock ticker
     selected_row = df_lookup[(df_lookup["Market"] == st.session_state.selected_exchange) & 
                             (df_lookup["Name"] == st.session_state.selected_stock)]
@@ -43,7 +47,8 @@ def retrieve_ticker_object(stock_ticker):
 @st.cache_data
 def retrieve_price_data(date_range):
     #Retrieves stock data based on the stock_ticker and the date_range
-    trade_data = st.session_state["ticker_object"].history(period=date_range)
+    ticker_obj = st.session_state["ticker_object"]
+    trade_data = ticker_obj.history(period=date_range)
     return trade_data
 
 
@@ -55,17 +60,22 @@ def create_graph(input_df):
 
     st.session_state["price_plot"].add_trace(go.Scatter(x=input_df.index,
                   y=input_df["Close"],
-                  mode="lines"),
+                  mode="lines",
+                  name="Price"),
                   secondary_y=True)
     
     st.session_state["price_plot"].add_trace(go.Bar(x=input_df.index,
                          y=input_df["Volume"], 
+                         name="Volume",
                          marker={"color":"gray"}),
                          secondary_y=False)
     
-    st.session_state["price_plot"].layout.xaxis.rangeslider.visible=True
-    st.session_state["price_plot"].layout.yaxis2.showgrid=False
-    st.session_state["price_plot"].layout.showlegend=False
+    st.session_state["price_plot"].update_layout(
+        xaxis_rangeslider_visible=True,
+        yaxis2_showgrid=False,
+        showlegend=False,
+        title="Price Volume Chart")
+    
 
     return st.session_state["price_plot"]
 
@@ -97,6 +107,8 @@ if __name__ == "__main__":
         st.session_state["selected_stock"] = None
     if "stock_name" not in st.session_state:
         st.session_state["stock_name"] = ""
+    if "currency" not in st.session_state:
+        st.session_state["currency"] = ""
     if "selected_ticker" not in st.session_state:
         st.session_state["selected_ticker"] = ""
     if "last_selected_ticker" not in st.session_state:
@@ -129,20 +141,21 @@ if __name__ == "__main__":
         st.write("Please select an exchange to see available stocks.")
     
     if st.session_state["selected_stock"] !="":
-        st.radio("Select the lenght of data to be displayed", ["1d", "5d", "1mo", "3mo", "ytd", "1y", "5y", "10y", "max"],
+        st.radio("Select the time period to be displayed", ["1d", "5d", "1mo", "3mo", "ytd", "1y", "5y", "10y", "max"],
                  index=5, horizontal=True, key="radio_range")
     else:
         st.write("Please select a date range")
 
 
     # Submit stock to get the selected ticker
-    submit_button = st.button("Get data", key="submit_button", 
-                              on_click=get_selected_symbol, args=(st.session_state.df_lookup, ))
+    submit_button = st.button("Get data 🔃", key="submit_button", use_container_width=True,
+                            on_click=get_selected_symbol, args=(st.session_state.df_lookup, ))
     
-                                 
+    
+                   
 
     #If the submit_button is pressed, retrieve data & plot graph, else write "Not submitted"
-    if submit_button and st.session_state["selected_exchange"] and st.session_state["selected_stock"] != None:
+    if submit_button and st.session_state["selected_exchange"]!=None and st.session_state["selected_stock"] != None:
         #Retrieving key info
         st.session_state["ticker_object"] = retrieve_ticker_object(st.session_state["selected_ticker"])
 
@@ -155,10 +168,15 @@ if __name__ == "__main__":
 
         #Store stock_info (dictionary of info) and stock_name in cache
         st.session_state["stock_info"], st.session_state["stock_name"] = retrieve_stock_info()
+        #Retrieving currency of the traded stock
+        st.session_state["currency"] = st.session_state.stock_info["currency"]
+        #Retrieving price targets from analysts
         st.session_state["price_targets"] = retrieve_price_targets()
 
         st.header("About the company")
         st.write(st.session_state.stock_info['longBusinessSummary'])
+        st.write(f"### Currency: {st.session_state["currency"]}")
+
         col1, col2 = st.columns(2)
 
         with col1:
@@ -181,7 +199,9 @@ if __name__ == "__main__":
         st.session_state["stock_data"] = retrieve_price_data(st.session_state["radio_range"])
         st.session_state["price_plot"] = create_graph(st.session_state["stock_data"])
         st.plotly_chart(st.session_state["price_plot"], use_container_width=True)
-
+    
+    elif submit_button  and st.session_state["selected_exchange"]==None and st.session_state["selected_stock"] == None:
+        st.write("⚠️ Error! Please select Exchange, Stock Name and Period before pressing 'Get data' ")
     else:
         st.write("Select Exchange, Stock Name and Period before pressing 'Get data'")
 

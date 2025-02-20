@@ -29,7 +29,14 @@ if __name__ == "__main__":
     st.session_state["income_stmt"] = fetch_income_stmt()
     st.session_state["balance_sheet"] = fetch_balance_sheet()
 
-    st.header("Income Statement")
+
+    # Clear cache if stock selection has changed
+    if "last_selected_ticker" in st.session_state and st.session_state["last_selected_ticker"] != st.session_state["selected_ticker"]:
+        st.cache_data.clear()  # Clears the cached data when the selection changes
+
+    st.write(f"### Currency: {st.session_state["currency"]}")
+    st.header("Income Statement & Balance Sheet")
+    
     with st.expander("Yearly Income Statement"):
         st.write(st.session_state["income_stmt"])
 

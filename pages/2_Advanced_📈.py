@@ -12,7 +12,12 @@ import numpy as np
 @st.cache_data
 def get_dividends():
    ticker_obj = st.session_state["ticker_object"]
-   dividends = ticker_obj.dividends
+   #Refreshing history for max to buypass bug in yfinance library. If a shorter timeperiod
+   #has been previously slected, only dividends for that period will be selected
+   ticker_obj = ticker_obj.history(period="max")
+
+   ticker_obj2 = st.session_state["ticker_object"]
+   dividends = ticker_obj2.dividends
    dividends_df = pd.DataFrame(dividends, columns=["Dividends"])
 
    return dividends_df
@@ -23,7 +28,7 @@ def plot_dividends():
     fig = go.Figure(data=go.Bar(x=dividends_df.index,
                                 y=dividends_df["Dividends"]))
 
-    fig.update_layout(title="Historical dividends",
+    fig.update_layout(title=f"Historical dividends in {st.session_state["currency"]}",
                       xaxis_title="Date",
                       yaxis_title="Dividends")
     return fig
@@ -33,6 +38,7 @@ def plot_dividends():
 #First, get financial statement
 @st.cache_data
 def get_financials():
+    #Fetching financial statement on yearly basis
     ticker_obj = st.session_state["ticker_object"]
     financial_stmt = ticker_obj.get_income_stmt(freq="yearly")
     return financial_stmt
@@ -100,7 +106,8 @@ def plot_eps_history():
     
     fig.update_layout(
         xaxis_title="Date",
-        yaxis_title="EPS"
+        yaxis_title="EPS",
+        title=f"EPS in {st.session_state["currency"]}"
     )
     return fig
     
@@ -133,8 +140,6 @@ if __name__ == "__main__":
         st.session_state["market_pe"] = ""
     if "financial_stmt" not in st.session_state:
         st.session_state["financial_stmt"] = pd.DataFrame()
-    if "transposed_df" not in st.session_state:
-        st.session_state["transposed_df"] = pd.DataFrame()
     if "margins_df" not in st.session_state:
         st.session_state["margins_df"] = pd.DataFrame()
     if "margin_plot" not in st.session_state:
@@ -144,7 +149,10 @@ if __name__ == "__main__":
     if "EPS_plot" not in st.session_state:
         st.session_state["EPS_plot"] = False
 
-    
+    # Clear cache if stock selection has changed
+    if "last_selected_ticker" in st.session_state and st.session_state["last_selected_ticker"] != st.session_state["selected_ticker"]:
+        st.cache_data.clear()  # Clears the cached data when the selection changes
+
     st.header("Advanced Information 📈")
     st.write(f"### {st.session_state["stock_name"]}")
     st.write(f"PE-ratio: {st.session_state.stock_info['trailingPE']}")
@@ -167,16 +175,19 @@ if __name__ == "__main__":
 
     #Get financial statement
     st.session_state["financial_stmt"] = get_financials() 
-    st.session_state["transposed_df"] = calc_margins() 
-    st.session_state["margins_df"] = calc_margins()
-    st.session_state["margin_plot"] = plot_margins()
+    try:
+        st.session_state["margins_df"] = calc_margins()
+        st.session_state["margin_plot"] = plot_margins()
+        #Plot graph for margins
+        st.write("#### Gross Profit & Operating Margin in")
+        st.plotly_chart(st.session_state["margin_plot"], use_container_width=True)
+    except:
+        st.write("#### Gross Profit & Operating Margin in'")
+        st.write("Unable to calculate 'Gross Profit Margin' and 'Operating Margin")
+        
+
     st.session_state["EPS_plot"] = plot_eps_history()
     
-  
-    #Plot graph for margins
-    st.write("#### Gross Profit & Operating Margin")
-    st.plotly_chart(st.session_state["margin_plot"], use_container_width=True)
-
 
     #Plot historic EPS
     st.write("#### EPS History")
@@ -184,10 +195,15 @@ if __name__ == "__main__":
 
 
     #Get historic dividends
-    st.session_state["dividends"] = get_dividends()
-    st.session_state["dividend_plot"] = plot_dividends()
+    st.write("#### Historic dividends")
+    try:
+        st.session_state["dividends"] = get_dividends()
+        st.session_state["dividend_plot"] = plot_dividends()
+        
+        #Plot graph for dividends
+        st.plotly_chart(st.session_state["dividend_plot"], use_container_width=True)
+    except:
+        st.write("Unable to get historic dividends")
 
-    #Plot graph for dividends
-    st.plotly_chart(st.session_state["dividend_plot"], use_container_width=True)
     
 
